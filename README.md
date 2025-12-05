@@ -16,16 +16,16 @@ Le serveur écoute sur le port `1337` et alimente une base SQLite en mémoire. L
 - **Produits** : 4 articles avec prix et stock
 - **Commandes** : quelques achats existants
 
-## Routes disponibles
+## Parcours en trois pages
 
-| Fonction          | Route API             | Points clés de sécurisation                                            |
-| ----------------- | --------------------- | ---------------------------------------------------------------------- |
-| Connexion         | `/api/login`          | Requête préparée, valeurs liées, pas d’exfiltration de mot de passe    |
-| Recherche produit | `/api/searchProducts` | Clause `LIKE` paramétrée, encodage des caractères spéciaux côté client |
-| Mise à jour prix  | `/api/updatePrice`    | Conversion numérique stricte, exception si entrée invalide             |
-| Création commande | `/api/placeOrder`     | Vérifications type/borne, calcul du total côté serveur                 |
+| Étape | Page           | Route API             | Points clés de sécurisation                                            |
+| ----- | -------------- | --------------------- | ---------------------------------------------------------------------- |
+| 1     | `login.html`   | `/api/login`          | Requête préparée, valeurs liées, pas d’exfiltration de mot de passe    |
+| 2     | `catalog.html` | `/api/searchProducts` | Clause `LIKE` paramétrée, encodage des caractères spéciaux côté client |
+|       |                | `/api/updatePrice`    | Conversion numérique stricte, exception si entrée invalide             |
+| 3     | `orders.html`  | `/api/placeOrder`     | Vérifications type/borne, calcul du total côté serveur                 |
 
-La page `index.html` propose un formulaire par fonctionnalité. Les « payloads bloqués » permettent de tester des injections classiques (`' OR '1'='1`, `UNION SELECT`, etc.) et d’observer qu’aucune requête malveillante n’est exécutée.
+Chaque page propose les mêmes payloads qu’en branche `unsafe`, mais montre comment la validation et les requêtes paramétrées neutralisent l’injection. `index.html` sert de tableau de bord : navigation Connexion → Catalogue → Commandes et vue d’ensemble de l’état (utilisateurs, produits, commandes).
 
 ## Points pédagogiques
 
