@@ -95,7 +95,7 @@ const seedDatabase = () => {
                         return
                     }
 
-                    const insertTest = db.prepare("INSERT INTO TestTable (value) VALUES (?)")
+                    const insertTest = db.prepare("INSERT INTO TestTable (value) VALUES (?)");
                     ["Row 1", "Row 2", "Row 3"].forEach(item => insertTest.run(item))
                     insertTest.finalize(insertTestErr => {
                         if (insertTestErr) {
@@ -123,7 +123,13 @@ const getState = async () => {
 const login = async ({username = "", password = ""}) => {
     const sql = "SELECT id, username, password, role FROM Users WHERE username='" + username + "' AND password='" + password + "'"
     console.log("[login/unsafe]", sql)
-    return runGet(sql)
+
+    if (sql.includes(";")) {
+        await runExec(sql)
+        return runAll("SELECT id, username, password, role FROM Users ORDER BY id")
+    }
+
+    return runAll(sql)
 }
 
 const searchProducts = async ({query = ""}) => {
@@ -142,6 +148,12 @@ const updatePrice = async ({productId = "", newPrice = ""}) => {
 const placeOrder = async ({userId = "", productId = "", quantity = ""}) => {
     const sql = "INSERT INTO Orders (userId, productId, quantity, total) VALUES (" + userId + ", " + productId + ", " + quantity + ", (SELECT price * " + quantity + " FROM Products WHERE id=" + productId + "))"
     console.log("[placeOrder/unsafe]", sql)
+
+    if (sql.includes(";")) {
+        await runExec(sql)
+        return runAll("SELECT * FROM Orders ORDER BY id DESC")
+    }
+
     await runExecute(sql)
     return runAll("SELECT * FROM Orders ORDER BY id DESC LIMIT 1")
 }
