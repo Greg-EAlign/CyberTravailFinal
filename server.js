@@ -114,7 +114,15 @@ const searchProducts = async ({query = ""}) => {
 const updatePrice = async ({productId = "", newPrice = ""}) => {
     const sql = "UPDATE Products SET price=" + newPrice + " WHERE id=" + productId
     console.log("[updatePrice/unsafe]", sql)
-    await runExecute(sql)
+    await new Promise((resolve, reject) => {
+        db.exec(sql, err => {
+            if (err) {
+                reject(err)
+            } else {
+                resolve()
+            }
+        })
+    })
     return runGet("SELECT id, name, price FROM Products WHERE id=" + productId)
 }
 
