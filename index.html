@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SQLite SQL injection demo</title>
+    <style>
+    * {
+        font-family: "Helvetica";
+    }
+    #resetDatabase {
+        margin: 10px 0px;
+    }
+    #dbOutput, #dbTableHeaders {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid gray;
+    }
+    #dbOutput > div, #dbTableHeaders > div {
+        display: flex;
+        justify-content: space-around;
+        padding: 10px;
+    }
+    #dbOutput > div > div {
+        width: 100%;
+        text-align: center;
+    }
+    #dbOutput > div:nth-child(even) {
+        background-color: #DDD;
+    }
+    input {
+        width: 400px;
+    }
+    .flexTable {
+        display: flex;
+        flex-direction: column;
+    }
+    .flexTable > div {
+        display: flex;
+        justify-content: space-between;
+        width: 50%;
+    }
+    </style>
+    <script>
+    "use strict"
+    window.addEventListener("load", () => {
+
+        const fillOutput = ({rows}) => {
+            dbOutput.innerHTML = ""
+
+            rows.forEach(({id, data}) => {
+                const rowElem = document.createElement("div")
+                const rowId = document.createElement("div")
+                const rowData = document.createElement("div")
+                rowId.innerHTML = id
+                rowData.innerHTML = data
+                rowElem.appendChild(rowId)
+                rowElem.appendChild(rowData)
+                dbOutput.appendChild(rowElem)
+            })
+        }
+
+        document.querySelectorAll("button").forEach(button => {
+            button.addEventListener("click", () => {
+                fetch(`/${button.id}`, {
+                    method: "Post",
+                    body: JSON.stringify({input: dbInput.value})
+                }).then(r => r.json())
+                .then(fillOutput)
+            })
+        })
+
+        resetDatabase.click()
+    })
+    </script>
+</head>
+<body>
+    <input type="text" id="dbInput">
+    <br>
+    <br>
+    <button id="addSafe">Add safely</button>
+    <button id="addUnsafe">Add unsafely</button>
+    <button id="deleteSafe">Delete ID safely</button>
+    <button id="deleteUnsafe">Delete ID unsafely</button>
+    <br>
+    <button id="resetDatabase">Reset Database</button>
+
+    <div id="dbTableHeaders">
+        <div>
+            <div>ID</div>
+            <div>Data</div>
+        </div>
+    </div>
+    <div id="dbOutput"></div>
+
+    <br>
+    <div>
+        Exploit examples:
+
+        <div class="flexTable">
+            <div>
+                <div>Adding</div>
+                <div>you'), ('got'), ('hacked</div>
+            </div>
+            <div>
+                <div>Deleting</div>
+                <div>rowid</div>
+            </div>
+            <div>
+                <div>Deleting</div>
+                <div>999 or 1=1</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
