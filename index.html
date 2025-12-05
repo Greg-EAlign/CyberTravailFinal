@@ -2,197 +2,95 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Boutique en ligne - Démo SQL injection (unsafe)</title>
+    <title>Parcours vulnérable - Boutique en ligne (unsafe)</title>
     <style>
     * { font-family: Arial, sans-serif; box-sizing: border-box; }
     body { margin: 20px; background: #fff5f5; color: #1f1f1f; }
-    h1 { margin-bottom: 5px; }
-    h2 { margin-top: 30px; }
+    h1 { margin-bottom: 10px; }
     section { background: #fff; padding: 20px; margin-top: 20px; border-radius: 6px; border: 1px solid #f3b0b2; box-shadow: 0 2px 6px rgba(193,18,31,0.08); }
-    label { display: block; margin-top: 10px; }
-    input, textarea, select { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #d69296; border-radius: 4px; }
-    button { margin-top: 12px; margin-right: 8px; padding: 10px 16px; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
-    button.danger { background: #c1121f; }
-    button.secondary { background: #6c757d; }
+    a.button { display: inline-block; margin-top: 12px; margin-right: 12px; padding: 12px 18px; border-radius: 4px; text-decoration: none; color: #fff; background: #c1121f; }
+    a.secondary { background: #6c757d; }
+    button { padding: 10px 16px; border: none; border-radius: 4px; color: #fff; background: #6c757d; cursor: pointer; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
     th, td { padding: 8px; border: 1px solid #f3b0b2; text-align: left; }
     th { background: #ffe3e3; }
-    #payloads code { display: block; background: #ffe3e3; padding: 6px; border-radius: 4px; margin-top: 4px; }
-    #log { margin-top: 12px; min-height: 24px; }
-    .row { display: flex; flex-wrap: wrap; gap: 16px; }
-    .row > div { flex: 1 1 280px; }
+    #state { margin-top: 20px; }
     </style>
     <script>
     "use strict"
     window.addEventListener("load", () => {
         const stateView = document.getElementById("state")
-        const logView = document.getElementById("log")
-
-        const renderTable = (rows, columns) => {
+        const resetBtn = document.getElementById("reset")
+        const renderTable = (title, rows, columns) => {
             if (!rows || !rows.length) {
-                return "<p>Aucune donnée.</p>"
+                return `<section><h2>${title}</h2><p>Aucune donnée.</p></section>`
             }
             const header = `<tr>${columns.map(col => `<th>${col.label}</th>`).join("")}</tr>`
             const body = rows.map(row => `<tr>${columns.map(col => `<td>${row[col.key]}</td>`).join("")}</tr>`).join("")
-            return `<table>${header}${body}</table>`
+            return `<section><h2>${title}</h2><table>${header}${body}</table></section>`
         }
 
-        const updateUI = ({state, actionResult, error}) => {
-            if (!state) {
-                logView.textContent = error || "Pas de réponse"
-                logView.style.color = "#c1121f"
-                return
-            }
-
-            const productsHtml = renderTable(state.products, [
-                {key: "id", label: "ID"},
-                {key: "name", label: "Produit"},
-                {key: "description", label: "Description"},
-                {key: "price", label: "Prix"},
-                {key: "stock", label: "Stock"}
-            ])
-
-            const ordersHtml = renderTable(state.orders, [
-                {key: "id", label: "Commande"},
-                {key: "userId", label: "Client"},
-                {key: "productId", label: "Produit"},
-                {key: "quantity", label: "Quantité"},
-                {key: "total", label: "Total (€)"}
-            ])
-
-            const usersHtml = renderTable(state.users, [
-                {key: "id", label: "ID"},
-                {key: "username", label: "Utilisateur"},
-                {key: "password", label: "Mot de passe"},
-                {key: "role", label: "Rôle"}
-            ])
-
-            stateView.innerHTML = `
-                <section>
-                    <h2>Catalogue produits</h2>
-                    <p>Les prix et stocks sont directement modifiables via injection.</p>
-                    ${productsHtml}
-                </section>
-                <section>
-                    <h2>Commandes</h2>
-                    <p>La table peut être polluée par des commandes injectées.</p>
-                    ${ordersHtml}
-                </section>
-                <section>
-                    <h2>Comptes utilisateurs</h2>
-                    <p>Les mots de passe en clair sont exposés si la requête UNION aboutit.</p>
-                    ${usersHtml}
-                </section>
-            `
-
-            if (error) {
-                logView.textContent = `Erreur: ${error}`
-                logView.style.color = "#c1121f"
-            } else if (actionResult) {
-                logView.textContent = `Résultat brut: ${JSON.stringify(actionResult)}`
-                logView.style.color = "#c1121f"
-            } else {
-                logView.textContent = "Action exécutée."
-                logView.style.color = "#1f1f1f"
-            }
+        const refreshState = () => {
+            fetch("/api/state")
+                .then(res => res.json())
+                .then(({state}) => {
+                    if (!state) {
+                        stateView.innerHTML = ""
+                        return
+                    }
+                    const users = renderTable("Comptes utilisateurs", state.users, [
+                        {key: "id", label: "ID"},
+                        {key: "username", label: "Utilisateur"},
+                        {key: "password", label: "Mot de passe"},
+                        {key: "role", label: "Rôle"}
+                    ])
+                    const products = renderTable("Catalogue produit", state.products, [
+                        {key: "id", label: "ID"},
+                        {key: "name", label: "Produit"},
+                        {key: "price", label: "Prix"},
+                        {key: "stock", label: "Stock"}
+                    ])
+                    const orders = renderTable("Commandes", state.orders, [
+                        {key: "id", label: "Commande"},
+                        {key: "userId", label: "Client"},
+                        {key: "productId", label: "Produit"},
+                        {key: "quantity", label: "Quantité"},
+                        {key: "total", label: "Total (€)"}
+                    ])
+                    stateView.innerHTML = users + products + orders
+                })
         }
 
-        const callEndpoint = (endpoint, body, method = "POST") => {
-            return fetch(endpoint, {
-                method,
+        resetBtn.addEventListener("click", () => {
+            fetch("/api/reset", {
+                method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: method === "GET" ? undefined : JSON.stringify(body || {})
-            }).then(res => res.json())
-        }
-
-        document.querySelectorAll("form[data-endpoint]").forEach(form => {
-            form.addEventListener("submit", event => {
-                event.preventDefault()
-                const data = Object.fromEntries(new FormData(form).entries())
-                const endpoint = form.getAttribute("data-endpoint")
-                callEndpoint(endpoint, data).then(updateUI)
+                body: JSON.stringify({})
             })
+                .then(() => refreshState())
         })
 
-        document.getElementById("reset").addEventListener("click", () => {
-            callEndpoint("/api/reset").then(updateUI)
-        })
-
-        document.getElementById("refresh").addEventListener("click", () => {
-            callEndpoint("/api/state", {}, "GET").then(updateUI)
-        })
-
-        callEndpoint("/api/state", {}, "GET").then(updateUI)
+        refreshState()
     })
     </script>
 </head>
 <body>
-    <h1>Démo d’injection SQL - Boutique en ligne (branche unsafe)</h1>
-    <p>Cette branche expose des versions vulnérables des fonctionnalités métier pour observer l’impact d’une injection.</p>
+    <h1>Démo d’injection SQL - Parcours vulnérable</h1>
+    <p>Suivez le chemin <strong>Connexion → Catalogue → Commandes</strong> pour observer comment chaque étape est exploitable.</p>
 
     <section>
-        <h2>Points d’entrée vulnérables</h2>
-        <div class="row">
-            <div>
-                <h3>1. Authentification</h3>
-                <p>Entrée concaténée dans la clause WHERE.</p>
-                <form data-endpoint="/api/login">
-                    <label>Utilisateur</label>
-                    <input name="username" placeholder="admin" required>
-                    <label>Mot de passe</label>
-                    <input name="password" placeholder="mot de passe" required>
-                    <button type="submit" class="danger">login (unsafe)</button>
-                </form>
-            </div>
-            <div>
-                <h3>2. Recherche catalogue</h3>
-                <p>Filtre LIKE construit à partir de la saisie brute.</p>
-                <form data-endpoint="/api/searchProducts">
-                    <label>Recherche</label>
-                    <input name="query" placeholder="Cyber">
-                    <button type="submit" class="danger">searchProducts (unsafe)</button>
-                </form>
-            </div>
-            <div>
-                <h3>3. Modification de prix</h3>
-                <p>Pas de conversion numérique ni de contrôle de rôle.</p>
-                <form data-endpoint="/api/updatePrice">
-                    <label>ID produit</label>
-                    <input name="productId" placeholder="1" required>
-                    <label>Nouveau prix</label>
-                    <input name="newPrice" placeholder="0 OR 1=1" required>
-                    <button type="submit" class="danger">updatePrice (unsafe)</button>
-                </form>
-            </div>
-            <div>
-                <h3>4. Création de commande</h3>
-                <p>Quantité et ID ne sont pas validés.</p>
-                <form data-endpoint="/api/placeOrder">
-                    <label>ID utilisateur</label>
-                    <input name="userId" placeholder="2" required>
-                    <label>ID produit</label>
-                    <input name="productId" placeholder="1" required>
-                    <label>Quantité</label>
-                    <input name="quantity" placeholder="1" required>
-                    <button type="submit" class="danger">placeOrder (unsafe)</button>
-                </form>
-            </div>
+        <h2>Étapes du parcours</h2>
+        <ol>
+            <li><strong>Connexion</strong> : usurpation de compte via injection dans la requête WHERE.</li>
+            <li><strong>Catalogue</strong> : exfiltration et manipulation de données via UNION ou mise à jour arbitraire.</li>
+            <li><strong>Commandes</strong> : création de commandes frauduleuses et pollution des données.</li>
+        </ol>
+        <div>
+            <a class="button" href="login.html">Étape 1 · Connexion</a>
+            <a class="button" href="catalog.html">Étape 2 · Catalogue</a>
+            <a class="button" href="orders.html">Étape 3 · Commandes</a>
         </div>
         <button id="reset" class="secondary">Réinitialiser la boutique</button>
-        <button id="refresh" class="secondary">Actualiser l’état</button>
-        <div id="log"></div>
-    </section>
-
-    <section id="payloads">
-        <h2>Payloads d’exploitation efficaces</h2>
-        <h3>Prise de contrôle du login</h3>
-        <code>' OR '1'='1</code>
-        <h3>Exfiltration du fichier clients</h3>
-        <code>%&#39; UNION SELECT id, username, password, role, role FROM Users--</code>
-        <h3>Changement massif de prix</h3>
-        <code>0; UPDATE Products SET price=0 WHERE 1=1; --</code>
-        <h3>Insertion de commande factice</h3>
-        <code>1); INSERT INTO Orders(userId, productId, quantity, total) VALUES (99, 1, 10, 0); --</code>
     </section>
 
     <div id="state"></div>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Étape 3 - Commandes vulnérables</title>
+    <style>
+    * { font-family: Arial, sans-serif; box-sizing: border-box; }
+    body { margin: 20px; background: #fff5f5; color: #1f1f1f; }
+    section { background: #fff; padding: 20px; margin-top: 20px; border-radius: 6px; border: 1px solid #f3b0b2; box-shadow: 0 2px 6px rgba(193,18,31,0.08); }
+    label { display: block; margin-top: 10px; }
+    input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #d69296; border-radius: 4px; }
+    button { margin-top: 12px; margin-right: 8px; padding: 10px 16px; border: none; border-radius: 4px; color: #fff; cursor: pointer; }
+    button.danger { background: #c1121f; }
+    button.secondary { background: #6c757d; }
+    a.button { display: inline-block; margin-top: 12px; margin-right: 12px; padding: 12px 18px; border-radius: 4px; text-decoration: none; color: #fff; background: #c1121f; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { padding: 8px; border: 1px solid #f3b0b2; text-align: left; }
+    th { background: #ffe3e3; }
+    #log { margin-top: 12px; min-height: 24px; }
+    textarea { width: 100%; height: 90px; margin-top: 8px; border: 1px solid #d69296; border-radius: 4px; padding: 8px; }
+    </style>
+    <script>
+    "use strict"
+    window.addEventListener("load", () => {
+        const orderForm = document.getElementById("orderForm")
+        const logView = document.getElementById("log")
+        const ordersTable = document.getElementById("orders")
+        const resetBtn = document.getElementById("reset")
+        const payloadInsert = document.getElementById("payloadInsert")
+
+        const renderOrders = orders => {
+            if (!orders || !orders.length) {
+                ordersTable.innerHTML = "<p>Aucune donnée.</p>"
+                return
+            }
+            const header = "<tr><th>ID</th><th>Client</th><th>Produit</th><th>Quantité</th><th>Total</th></tr>"
+            const body = orders.map(({id, userId, productId, quantity, total}) => `<tr><td>${id}</td><td>${userId}</td><td>${productId}</td><td>${quantity}</td><td>${total}</td></tr>`).join("")
+            ordersTable.innerHTML = `<table>${header}${body}</table>`
+        }
+
+        const refreshState = () => {
+            fetch("/api/state")
+                .then(res => res.json())
+                .then(({state}) => renderOrders(state ? state.orders : []))
+        }
+
+        orderForm.addEventListener("submit", event => {
+            event.preventDefault()
+            const data = Object.fromEntries(new FormData(orderForm).entries())
+            fetch("/api/placeOrder", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(data)
+            }).then(res => res.json())
+            .then(({actionResult, error}) => {
+                if (error) {
+                    logView.textContent = `Erreur: ${error}`
+                } else {
+                    logView.textContent = `Résultat brut: ${JSON.stringify(actionResult)}`
+                    refreshState()
+                }
+                logView.style.color = "#c1121f"
+            })
+        })
+
+        resetBtn.addEventListener("click", () => {
+            fetch("/api/reset", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({})
+            })
+                .then(() => {
+                    logView.textContent = "Base réinitialisée."
+                    refreshState()
+                })
+        })
+
+        payloadInsert.addEventListener("click", () => {
+            orderForm.userId.value = "1"
+            orderForm.productId.value = "1"
+            orderForm.quantity.value = "1); INSERT INTO Orders(userId, productId, quantity, total) VALUES (99, 1, 10, 0); --"
+        })
+
+        refreshState()
+    })
+    </script>
+</head>
+<body>
+    <h1>Étape 3 · Commandes vulnérables</h1>
+    <p>L’insertion SQL concaténée permet de falsifier des commandes ou de corrompre la base entière.</p>
+
+    <section>
+        <h2>Création de commande</h2>
+        <form id="orderForm">
+            <label>ID utilisateur</label>
+            <input name="userId" placeholder="2" required>
+            <label>ID produit</label>
+            <input name="productId" placeholder="1" required>
+            <label>Quantité ou payload</label>
+            <textarea name="quantity" placeholder="1"></textarea>
+            <button type="submit" class="danger">placeOrder (unsafe)</button>
+            <button type="button" id="payloadInsert" class="secondary">Payload commande frauduleuse</button>
+        </form>
+        <div id="log"></div>
+    </section>
+
+    <section>
+        <h2>Commandes en base</h2>
+        <div id="orders"></div>
+    </section>
+
+    <section>
+        <h2>Navigation</h2>
+        <a class="button" href="catalog.html">Retour · Catalogue</a>
+        <a class="button" href="index.html">Accueil</a>
+        <button id="reset" class="secondary">Réinitialiser la boutique</button>
+    </section>
+</body>
+</html>
