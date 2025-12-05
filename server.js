@@ -38,6 +38,16 @@ const runExecute = sql => new Promise((resolve, reject) => {
     })
 })
 
+const runExec = sql => new Promise((resolve, reject) => {
+    db.exec(sql, err => {
+        if (err) {
+            reject(err)
+        } else {
+            resolve()
+        }
+    })
+})
+
 const seedDatabase = () => {
     return new Promise((resolve, reject) => {
         db.close(err => {
@@ -52,6 +62,7 @@ const seedDatabase = () => {
                 db.run("CREATE TABLE Users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT)")
                 db.run("CREATE TABLE Products (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, price REAL, stock INTEGER)")
                 db.run("CREATE TABLE Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, userId INTEGER, productId INTEGER, quantity INTEGER, total REAL)")
+                db.run("CREATE TABLE TestTable (value TEXT)")
 
                 const insertUser = db.prepare("INSERT INTO Users (username, password, role) VALUES (?, ?, ?)")
                 const users = [
@@ -81,9 +92,18 @@ const seedDatabase = () => {
                 insertOrder.finalize(errFinalize => {
                     if (errFinalize) {
                         reject(errFinalize)
-                    } else {
-                        resolve()
+                        return
                     }
+
+                    const insertTest = db.prepare("INSERT INTO TestTable (value) VALUES (?)")
+                    ["Row 1", "Row 2", "Row 3"].forEach(item => insertTest.run(item))
+                    insertTest.finalize(insertTestErr => {
+                        if (insertTestErr) {
+                            reject(insertTestErr)
+                        } else {
+                            resolve()
+                        }
+                    })
                 })
             })
         })
@@ -91,12 +111,13 @@ const seedDatabase = () => {
 }
 
 const getState = async () => {
-    const [products, orders, users] = await Promise.all([
+    const [products, orders, users, testTable] = await Promise.all([
         runAll("SELECT id, name, description, price, stock FROM Products ORDER BY id"),
         runAll("SELECT id, userId, productId, quantity, total FROM Orders ORDER BY id"),
-        runAll("SELECT id, username, password, role FROM Users ORDER BY id")
+        runAll("SELECT id, username, password, role FROM Users ORDER BY id"),
+        runAll("SELECT rowid, value FROM TestTable ORDER BY rowid")
     ])
-    return {products, orders, users}
+    return {products, orders, users, testTable}
 }
 
 const login = async ({username = "", password = ""}) => {
@@ -114,15 +135,7 @@ const searchProducts = async ({query = ""}) => {
 const updatePrice = async ({productId = "", newPrice = ""}) => {
     const sql = "UPDATE Products SET price=" + newPrice + " WHERE id=" + productId
     console.log("[updatePrice/unsafe]", sql)
-    await new Promise((resolve, reject) => {
-        db.exec(sql, err => {
-            if (err) {
-                reject(err)
-            } else {
-                resolve()
-            }
-        })
-    })
+    await runExec(sql)
     return runGet("SELECT id, name, price FROM Products WHERE id=" + productId)
 }
 
@@ -133,11 +146,27 @@ const placeOrder = async ({userId = "", productId = "", quantity = ""}) => {
     return runAll("SELECT * FROM Orders ORDER BY id DESC LIMIT 1")
 }
 
+const addUnsafe = async ({value = ""}) => {
+    const sql = "INSERT INTO TestTable VALUES ('" + value + "')"
+    console.log("[addUnsafe/unsafe]", sql)
+    await runExec(sql)
+    return runAll("SELECT rowid, value FROM TestTable ORDER BY rowid")
+}
+
+const deleteUnsafe = async ({rowId = ""}) => {
+    const sql = "DELETE FROM TestTable WHERE rowid=" + rowId
+    console.log("[deleteUnsafe/unsafe]", sql)
+    await runExec(sql)
+    return runAll("SELECT rowid, value FROM TestTable ORDER BY rowid")
+}
+
 const handlers = {
     "/api/login": login,
     "/api/searchProducts": searchProducts,
     "/api/updatePrice": updatePrice,
-    "/api/placeOrder": placeOrder
+    "/api/placeOrder": placeOrder,
+    "/api/test/add": addUnsafe,
+    "/api/test/delete": deleteUnsafe
 }
 
 const server = http.createServer((request, response) => {
